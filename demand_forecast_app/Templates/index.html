@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Demand Forecast + AI Suggestion</title>
+
+    <!-- CACHE DISABLE -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- MATERIAL DESIGN LITE -->
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+
+    <!-- MATERIAL ICONS -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- GOOGLE FONTS -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap">
+
+    <style>
+        body { padding: 20px; background: #f5f5f5; font-family: 'Poppins', sans-serif; }
+
+        .page-title { 
+            text-align:center; 
+            margin-bottom:30px; 
+        }
+
+        .page-title h1 {
+            color: #7B1FA2;
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        .page-title h3 {
+            color: #FF7043;
+            font-weight: 600;
+        }
+
+        .mdl-card { width: 100%; margin-top:20px; }
+        .chart-box { padding:20px; height:300px; }
+        .mdl-grid { margin-top: 20px; }
+
+        /* ===== Violet Input Theme ===== */
+        .mdl-textfield__label {
+            color: #7B1FA2 !important;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .mdl-textfield__input {
+            color: #4A148C !important;
+        }
+
+        .mdl-textfield.is-focused .mdl-textfield__label {
+            color: #7B1FA2 !important;
+        }
+
+        .mdl-textfield__label:after {
+            background-color: #7B1FA2 !important;
+        }
+
+        /* Card Titles */
+        .mdl-card__title-text {
+            font-size: 20px;
+            font-weight: 600;
+            color: #7B1FA2;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mdl-data-table th {
+            background: #E1BEE7;
+            color: #4A148C;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-title">
+    <h1>SmartStock Inventory Optimization for Retail Stores</h1>
+    <h3>Demand Forecast + AI Suggestion</h3>
+</div>
+
+<!-- FORM CARD -->
+<div class="mdl-card mdl-shadow--4dp">
+    <div class="mdl-card__title">
+        <h4 class="mdl-card__title-text">
+            <i class="material-icons" style="color:#7B1FA2;">edit_note</i> Enter Inputs
+        </h4>
+    </div>
+    <div class="mdl-card__supporting-text">
+        <form action="/predict" method="POST">
+
+            <!-- Date -->
+<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+    <input class="mdl-textfield__input" type="date" name="Date" required>
+    <label class="mdl-textfield__label">
+        <i class="material-icons" style="font-size:18px; vertical-align:middle;">event</i>
+        Date
+    </label>
+</div>
+
+{% for col in columns %}
+{% if col not in ["Date", "Day", "Month", "Year"] %}
+
+<div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+    <input class="mdl-textfield__input" type="text" name="{{ col }}" required>
+
+    <label class="mdl-textfield__label">
+        <i class="material-icons" style="font-size:18px; vertical-align:middle;">
+
+            {% if col == "Store ID" %} store
+            {% elif col == "Product ID" %} inventory_2
+            {% elif col == "Category" %} category
+            {% elif col == "Region" %} map
+            {% elif col == "Inventory Level" %} stacked_bar_chart
+            {% elif col == "Units Sold" %} shopping_cart
+            {% elif col == "Units Ordered" %} add_shopping_cart
+            {% elif col == "Price" %} attach_money
+            {% elif col == "Discount" %} sell
+            {% elif col == "Weather Condition" %} wb_sunny
+            {% elif col == "Holiday/Promotion" %} celebration
+            {% elif col == "Competitor Pricing" %} show_chart
+            {% else %} edit_note
+            {% endif %}
+
+        </i>
+        {{ col }}
+    </label>
+</div>
+
+{% endif %}
+{% endfor %}
+
+
+            <br><br>
+
+            <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
+                <i class="material-icons">trending_up</i> Predict
+            </button>
+
+        </form>
+    </div>
+</div>
+
+{% if ml_prediction %}
+<!-- ML PREDICTION CARD -->
+<div class="mdl-card mdl-shadow--2dp mdl-color--purple-50">
+    <div class="mdl-card__title">
+        <h4 class="mdl-card__title-text">
+            <i class="material-icons" style="color:#6A1B9A;">query_stats</i> ML Demand Forecast
+        </h4>
+    </div>
+    <div class="mdl-card__supporting-text">
+        <h5 style="font-size:24px; color:#6A1B9A;">{{ ml_prediction }}</h5>
+    </div>
+</div>
+{% endif %}
+
+{% if risk %}
+<!-- INVENTORY RISK CARD -->
+<div class="mdl-card mdl-shadow--2dp" style="border-left:8px solid {{ risk_color }};">
+    <div class="mdl-card__title">
+        <h4 class="mdl-card__title-text">
+            <i class="material-icons" style="color:{{ risk_color }};">analytics</i> Inventory Risk Level
+        </h4>
+    </div>
+    <div class="mdl-card__supporting-text">
+        <div style="display:flex; align-items:center; gap:10px;">
+
+            <i class="material-icons" style="color:{{ risk_color }}; font-size:28px;">
+                {% if "High" in risk %} error
+                {% elif "Medium" in risk %} warning
+                {% elif "Safe" in risk %} check_circle
+                {% else %} info {% endif %}
+            </i>
+
+            <span style="font-size:18px; font-weight:bold; color:{{ risk_color }};">
+                {{ risk }}
+            </span>
+
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if ai_text %} <!-- AI TEXT CARD --> 
+    <div class="mdl-card mdl-shadow--2dp"> 
+        <div class="mdl-card__title"> 
+            <h4 class="mdl-card__title-text">
+            <i class="material-icons" style="color:#7B1FA2;">smart_toy</i> AI Suggestion</h4>
+        </div> 
+        <div class="mdl-card__supporting-text"> 
+            <p style="white-space: pre-line;">{{ ai_text }}</p> 
+        </div> 
+    </div> 
+{% endif %}
+
+{% if history and history|length > 0 %}
+
+<!-- TWO CHARTS SIDE BY SIDE -->
+<div class="mdl-grid">
+
+    <!-- LEFT: DATE-WISE BAR CHART -->
+    <div class="mdl-cell mdl-cell--6-col">
+        <div class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+                <h4 class="mdl-card__title-text">
+                    <i class="material-icons" style="color:#7B1FA2;">bar_chart</i> Prediction History
+                </h4>
+            </div>
+            <div class="chart-box">
+                <canvas id="historyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: CATEGORY PIE CHART -->
+    <div class="mdl-cell mdl-cell--6-col">
+        <div class="mdl-card mdl-shadow--2dp">
+            <div class="mdl-card__title">
+                <h4 class="mdl-card__title-text">
+                    <i class="material-icons" style="color:#7B1FA2;">pie_chart</i> Category-wise Demand
+                </h4>
+            </div>
+            <div class="chart-box">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- HISTORY TABLE -->
+<div class="mdl-card mdl-shadow--2dp">
+    <div class="mdl-card__title">
+        <h4 class="mdl-card__title-text">
+            <i class="material-icons" style="color:#7B1FA2;">history</i> History List
+        </h4>
+    </div>
+
+    <div class="mdl-card__supporting-text">
+        <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp" style="width:100%;">
+
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Region</th>
+                    <th>Risk</th>
+                    <th>Prediction</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for h in history %}
+                <tr>
+                    <td>{{ h['Date'] }}</td>
+                    <td>{{ h['Category'] }}</td>
+                    <td>{{ h['Region'] }}</td>
+                    <td>{{ h['Inventory_Risk'] }}</td>
+                    <td>{{ h['prediction'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+</div>
+
+<script>
+    // DATE-WISE BAR CHART
+    const labels = [{% for h in history %}"{{ h['Date'] }}",{% endfor %}];
+    const values = [{% for h in history %}{{ h['prediction'] }},{% endfor %}];
+
+    new Chart(document.getElementById('historyChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Demand",
+                data: values,
+                backgroundColor: "rgba(123,31,162,0.6)"
+            }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+    });
+
+    // CATEGORY-WISE PIE CHART
+    const categoryData = {};
+    {% for h in history %}
+        categoryData["{{ h['Category'] }}"] = 
+            (categoryData["{{ h['Category'] }}"] || 0) + {{ h['prediction'] }};
+    {% endfor %}
+
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(categoryData),
+            datasets: [{
+                data: Object.values(categoryData),
+                backgroundColor: [
+                    "#7B1FA2","#AB47BC","#8E24AA",
+                    "#CE93D8","#6A1B9A","#4A148C"
+                ]
+            }]
+        }
+    });
+</script>
+
+{% endif %}
+
+</body>
+</html>
